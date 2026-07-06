@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS needs_reply (
   last_author_id INTEGER,
   last_author_name TEXT,
   last_activity_at INTEGER,
+  last_comment_text TEXT,
   resolved INTEGER NOT NULL DEFAULT 0,
   resolved_at INTEGER,
   created_at INTEGER NOT NULL,
@@ -80,6 +81,12 @@ CREATE TABLE IF NOT EXISTS digest (
   routine_summary TEXT NOT NULL,
   ids_key TEXT,
   generated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS relevance_state (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  ids_key TEXT,
+  checked_at INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS poller_state (

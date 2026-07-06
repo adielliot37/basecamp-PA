@@ -7,11 +7,13 @@ import { runOtherNotificationsSync } from "./services/otherNotifications.js";
 import { runReportsDueCheck } from "./services/reportsDue.js";
 import { runDigest } from "./services/digest.js";
 import { runChatPingsPass } from "./services/chatPings.js";
+import { runReplyRelevanceFilter } from "./services/replyRelevance.js";
 
 async function tick() {
   try {
     await runWatchSetDiscovery();
     await runNeedsReplyPass();
+    await runReplyRelevanceFilter();
     await runChatPingsPass();
     await runAssignmentsSync();
     await runOtherNotificationsSync();

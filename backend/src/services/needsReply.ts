@@ -24,6 +24,14 @@ function parseContainerId(appUrl: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 500);
+}
+
 function upsertNeedsReply(row: {
   recordingId: number;
   projectId: number | null;
@@ -35,6 +43,7 @@ function upsertNeedsReply(row: {
   lastAuthorId: number | null;
   lastAuthorName: string | null;
   lastActivityAt: number | null;
+  lastCommentText: string | null;
   resolved: boolean;
 }) {
   const now = Date.now();
@@ -46,7 +55,7 @@ function upsertNeedsReply(row: {
     db.prepare(
       `UPDATE needs_reply
        SET project_id = ?, project_name = ?, title = ?, app_url = ?, excerpt = ?,
-           last_author_id = ?, last_author_name = ?, last_activity_at = ?,
+           last_author_id = ?, last_author_name = ?, last_activity_at = ?, last_comment_text = ?,
            resolved = ?, resolved_at = CASE WHEN ? = 1 AND resolved = 0 THEN ? ELSE resolved_at END,
            updated_at = ?
        WHERE recording_id = ?`
@@ -59,6 +68,7 @@ function upsertNeedsReply(row: {
       row.lastAuthorId,
       row.lastAuthorName,
       row.lastActivityAt,
+      row.lastCommentText,
       row.resolved ? 1 : 0,
       row.resolved ? 1 : 0,
       now,
@@ -69,9 +79,9 @@ function upsertNeedsReply(row: {
     db.prepare(
       `INSERT INTO needs_reply
         (recording_id, project_id, project_name, title, app_url, excerpt,
-         mentioned_at, last_author_id, last_author_name, last_activity_at,
+         mentioned_at, last_author_id, last_author_name, last_activity_at, last_comment_text,
          resolved, resolved_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       row.recordingId,
       row.projectId,
@@ -83,11 +93,28 @@ function upsertNeedsReply(row: {
       row.lastAuthorId,
       row.lastAuthorName,
       row.lastActivityAt,
+      row.lastCommentText,
       row.resolved ? 1 : 0,
       row.resolved ? now : null,
       now,
       now
     );
+  }
+}
+
+/**
+ * A completed (or voided/checked-off) todo needs no reply regardless of who
+ * commented last — found via a real false positive: a todo titled
+ * "[VOIDED] STRIKE..." with completed:true kept showing as open because
+ * resolution only ever looked at comment order, never task status.
+ */
+async function isContainerCompleted(projectId: number | null, recordingId: number): Promise<boolean> {
+  if (!projectId) return false;
+  try {
+    const todo = await bcFetch<{ completed?: boolean }>(`/buckets/${projectId}/todos/${recordingId}.json`);
+    return todo.completed === true;
+  } catch {
+    return false; // not a todo (e.g. a Message/Document) or inaccessible — not a completed-todo case
   }
 }
 
@@ -110,6 +137,7 @@ async function refreshThread(recordingId: number, fallback: {
 
   const last = comments.at(-1);
   const resolvedByLastComment = last ? last.creator.id === config.basecamp.myPersonId : false;
+  const resolved = resolvedByLastComment || (await isContainerCompleted(fallback.projectId, recordingId));
 
   upsertNeedsReply({
     recordingId,
@@ -122,7 +150,8 @@ async function refreshThread(recordingId: number, fallback: {
     lastAuthorId: last?.creator.id ?? null,
     lastAuthorName: last?.creator.name ?? null,
     lastActivityAt: last ? Date.parse(last.created_at) : null,
-    resolved: resolvedByLastComment
+    lastCommentText: last ? stripHtml(last.content) : null,
+    resolved
   });
 }
 
