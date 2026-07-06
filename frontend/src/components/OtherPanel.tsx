@@ -1,96 +1,77 @@
 "use client";
 
-import { useState } from "react";
 import { usePolling } from "@/hooks/usePolling";
 import { api } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
-import { Panel, EmptyState, PanelRow } from "./Panel";
+
+const COLOR_BY_TYPE: Record<string, string> = {
+  Chat: "#8a2be2",
+  Assignment: "#d4a017",
+  Reminder: "#c0392b",
+  Comment: "#5bbfe1",
+  Message: "#dd6997",
+  Completion: "#5ba658",
+  waiting: "#5bbfe1"
+};
 
 export function OtherPanel() {
-  const { data, error } = usePolling(api.other, 45_000);
-  const [showAll, setShowAll] = useState(false);
+  const { data: digest, error: digestError } = usePolling(api.other, 45_000);
+  const { data: waitingOn } = usePolling(api.waitingOn, 45_000);
+
+  const waitingRows = (waitingOn ?? []).map((w) => ({
+    key: `waiting-${w.recording_id}`,
+    color: COLOR_BY_TYPE.waiting,
+    title: w.title,
+    sub: `${w.project_name} · you followed up`,
+    time: relativeTime(w.last_activity_at),
+    url: w.app_url
+  }));
+
+  const highlightRows = (digest?.highlights ?? []).map((h) => ({
+    key: `hl-${h.id}`,
+    color: COLOR_BY_TYPE[h.type] ?? "#8b8c8e",
+    title: h.title,
+    sub: h.reason,
+    time: relativeTime(h.created_at_bc),
+    url: h.app_url
+  }));
+
+  const rows = [...waitingRows, ...highlightRows];
+  const totalCount = rows.length + (digest?.total ?? 0) - (digest?.highlights.length ?? 0);
 
   return (
-    <Panel title="Everything else" count={data?.total}>
-      {error && <EmptyState>Couldn&rsquo;t load — {error}</EmptyState>}
-      {!error && data === null && <EmptyState>Loading&hellip;</EmptyState>}
-      {!error && data?.total === 0 && <EmptyState>Inbox zero.</EmptyState>}
-
-      {data && data.total > 0 && !showAll && (
-        <>
-          {data.highlights.length === 0 && (
-            <PanelRow>
-              <p className="text-sm text-[var(--color-text-muted)]">
-                Nothing stands out &mdash; all routine.
-              </p>
-            </PanelRow>
-          )}
-          {data.highlights.map((h) => (
-            <PanelRow key={h.id}>
-              <a
-                href={h.app_url}
-                target="_blank"
-                rel="noreferrer"
-                className="group flex items-start justify-between gap-4"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate group-hover:underline">{h.title}</p>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{h.reason}</p>
-                </div>
-                <span className="shrink-0 text-xs text-[var(--color-text-faint)] mt-0.5">
-                  {relativeTime(h.created_at_bc)}
-                </span>
-              </a>
-            </PanelRow>
-          ))}
-          {data.routineSummary && (
-            <PanelRow>
-              <p className="text-xs text-[var(--color-text-faint)]">{data.routineSummary}</p>
-            </PanelRow>
-          )}
-          <PanelRow>
-            <button
-              onClick={() => setShowAll(true)}
-              className="text-xs font-medium text-[var(--color-accent)]"
-            >
-              Show all {data.total} &rarr;
-            </button>
-          </PanelRow>
-        </>
-      )}
-
-      {data && showAll && (
-        <>
-          {data.all.map((n) => (
-            <PanelRow key={n.id}>
-              <a
-                href={n.app_url}
-                target="_blank"
-                rel="noreferrer"
-                className="group flex items-start justify-between gap-4"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate group-hover:underline">{n.title}</p>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                    {n.project_name} &middot; {n.type}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs text-[var(--color-text-faint)] mt-0.5">
-                  {relativeTime(n.created_at_bc)}
-                </span>
-              </a>
-            </PanelRow>
-          ))}
-          <PanelRow>
-            <button
-              onClick={() => setShowAll(false)}
-              className="text-xs font-medium text-[var(--color-accent)]"
-            >
-              Show summary &rarr;
-            </button>
-          </PanelRow>
-        </>
-      )}
-    </Panel>
+    <section className="panel else">
+      <div className="panel-head">
+        <div className="head-left">
+          <span className="panel-title">Everything else</span>
+          <span className="count">{totalCount}</span>
+        </div>
+        <span className="head-note">pings &middot; todos &middot; check-ins</span>
+      </div>
+      <div className="panel-body">
+        {digestError && <p className="empty-state">Couldn&rsquo;t load &mdash; {digestError}</p>}
+        {!digestError && digest === null && <p className="empty-state">Loading&hellip;</p>}
+        {!digestError && digest && rows.length === 0 && <p className="empty-state">Inbox zero.</p>}
+        {rows.map((r) => (
+          <div className="row" key={r.key}>
+            <a href={r.url} target="_blank" rel="noreferrer">
+              <span className="row-dot" style={{ background: r.color }} />
+              <div className="row-main">
+                <div className="row-title">{r.title}</div>
+                <div className="row-sub">{r.sub}</div>
+              </div>
+              <div className="row-right">
+                <span className="row-meta">{r.time}</span>
+              </div>
+            </a>
+          </div>
+        ))}
+        {digest?.routineSummary && (
+          <p className="empty-state" style={{ padding: "4px 4px 0", textAlign: "left" }}>
+            {digest.routineSummary}
+          </p>
+        )}
+      </div>
+    </section>
   );
 }

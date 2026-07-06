@@ -39,6 +39,9 @@ CREATE TABLE IF NOT EXISTS needs_reply (
   last_author_name TEXT,
   last_activity_at INTEGER,
   last_comment_text TEXT,
+  ask TEXT,
+  draft_reply TEXT,
+  ai_priority TEXT,
   resolved INTEGER NOT NULL DEFAULT 0,
   resolved_at INTEGER,
   created_at INTEGER NOT NULL,
@@ -87,6 +90,12 @@ CREATE TABLE IF NOT EXISTS relevance_state (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   ids_key TEXT,
   checked_at INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS draft_state (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  ids_key TEXT,
+  generated_at INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS poller_state (

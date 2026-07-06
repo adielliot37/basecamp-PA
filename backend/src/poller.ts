@@ -8,6 +8,7 @@ import { runReportsDueCheck } from "./services/reportsDue.js";
 import { runDigest } from "./services/digest.js";
 import { runChatPingsPass } from "./services/chatPings.js";
 import { runReplyRelevanceFilter } from "./services/replyRelevance.js";
+import { runReplyDrafts } from "./services/replyDrafts.js";
 
 async function tick() {
   try {
@@ -15,6 +16,7 @@ async function tick() {
     await runNeedsReplyPass();
     await runReplyRelevanceFilter();
     await runChatPingsPass();
+    await runReplyDrafts();
     await runAssignmentsSync();
     await runOtherNotificationsSync();
     await runReportsDueCheck();

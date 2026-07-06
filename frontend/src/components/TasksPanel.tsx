@@ -1,45 +1,52 @@
 "use client";
 
 import { usePolling } from "@/hooks/usePolling";
-import { api } from "@/lib/api";
-import { dueLabel } from "@/lib/format";
-import { Panel, EmptyState, PanelRow } from "./Panel";
+import { api, type TaskItem } from "@/lib/api";
 
-const toneClass: Record<string, string> = {
-  danger: "text-[var(--color-danger)]",
-  warning: "text-[var(--color-warning)]",
-  muted: "text-[var(--color-text-muted)]",
+const FLAG_BADGE: Record<string, { cls: string; label: string }> = {
+  overdue: { cls: "due-overdue", label: "Overdue" },
+  today: { cls: "due-today", label: "Due today" },
 };
+
+function TaskRow({ task }: { task: TaskItem }) {
+  const badge = FLAG_BADGE[task.flag];
+  return (
+    <div className="row">
+      <a href={task.app_url} target="_blank" rel="noreferrer">
+        <span className="row-dot" style={{ background: `var(--pri-${task.priority}-dot)` }} />
+        <div className="row-main">
+          <div className="row-title">{task.title}</div>
+          <div className="row-sub">{task.project_name}</div>
+        </div>
+        <div className="row-right">
+          {badge && <span className={`row-badge ${badge.cls}`}>{badge.label}</span>}
+        </div>
+      </a>
+    </div>
+  );
+}
 
 export function TasksPanel() {
   const { data, error } = usePolling(api.tasks, 45_000);
+  const attentionCount = data?.filter((t) => t.flag !== "ok").length ?? 0;
 
   return (
-    <Panel title="My active tasks" count={data?.length}>
-      {error && <EmptyState>Couldn&rsquo;t load — {error}</EmptyState>}
-      {!error && data === null && <EmptyState>Loading&hellip;</EmptyState>}
-      {!error && data?.length === 0 && <EmptyState>No open assignments.</EmptyState>}
-      {data?.map((task) => {
-        const due = dueLabel(task.due_on);
-        return (
-          <PanelRow key={task.todo_id}>
-            <a
-              href={task.app_url}
-              target="_blank"
-              rel="noreferrer"
-              className="group flex items-start justify-between gap-4"
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate group-hover:underline">{task.title}</p>
-                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{task.project_name}</p>
-              </div>
-              <span className={`shrink-0 text-xs font-medium mt-0.5 ${toneClass[due.tone]}`}>
-                {due.label}
-              </span>
-            </a>
-          </PanelRow>
-        );
-      })}
-    </Panel>
+    <section className="panel mid">
+      <div className="panel-head">
+        <div className="head-left">
+          <span className="panel-title">My active tasks</span>
+          <span className="count">{data?.length ?? 0}</span>
+        </div>
+        {attentionCount > 0 && <span className="head-note attn">{attentionCount} need attention</span>}
+      </div>
+      <div className="panel-body">
+        {error && <p className="empty-state">Couldn&rsquo;t load &mdash; {error}</p>}
+        {!error && data === null && <p className="empty-state">Loading&hellip;</p>}
+        {!error && data?.length === 0 && <p className="empty-state">No open assignments.</p>}
+        {data?.map((t) => (
+          <TaskRow key={t.todo_id} task={t} />
+        ))}
+      </div>
+    </section>
   );
 }

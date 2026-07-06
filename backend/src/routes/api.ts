@@ -11,7 +11,8 @@ export async function registerRoutes(app: FastifyInstance) {
     return db
       .prepare(
         `SELECT kind, recording_id, project_id, project_name, title, app_url, excerpt,
-                mentioned_at, last_author_id, last_author_name, last_activity_at
+                mentioned_at, last_author_id, last_author_name, last_activity_at,
+                ask, draft_reply, ai_priority
          FROM needs_reply
          WHERE resolved = 0
          ORDER BY COALESCE(last_activity_at, mentioned_at) DESC`
@@ -31,13 +32,41 @@ export async function registerRoutes(app: FastifyInstance) {
   });
 
   app.get("/api/tasks", async () => {
-    return db
+    const rows = db
       .prepare(
         `SELECT todo_id, project_id, project_name, title, app_url, due_on
          FROM assignment_cache
          ORDER BY (due_on IS NULL), due_on ASC`
       )
-      .all();
+      .all() as Array<{
+      todo_id: number;
+      project_id: number | null;
+      project_name: string;
+      title: string;
+      app_url: string;
+      due_on: string | null;
+    }>;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return rows.map((t) => {
+      let flag: "overdue" | "today" | "ok" = "ok";
+      let priority: "high" | "med" | "low" = "low";
+      if (t.due_on) {
+        const diffDays = Math.round((new Date(t.due_on + "T00:00:00").getTime() - today.getTime()) / 86_400_000);
+        if (diffDays < 0) {
+          flag = "overdue";
+          priority = "high";
+        } else if (diffDays === 0) {
+          flag = "today";
+          priority = "high";
+        } else if (diffDays <= 2) {
+          priority = "med";
+        }
+      }
+      return { ...t, flag, priority };
+    });
   });
 
   app.get("/api/other", async () => {

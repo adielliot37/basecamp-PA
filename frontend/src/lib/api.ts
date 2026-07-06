@@ -1,5 +1,7 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4100";
 
+export type Priority = "high" | "med" | "low";
+
 export interface NeedsReplyItem {
   kind: "mention" | "chat";
   recording_id: number;
@@ -12,6 +14,9 @@ export interface NeedsReplyItem {
   last_author_id: number | null;
   last_author_name: string | null;
   last_activity_at: number | null;
+  ask: string | null;
+  draft_reply: string | null;
+  ai_priority: Priority | null;
 }
 
 export interface WaitingOnItem {
@@ -31,6 +36,8 @@ export interface TaskItem {
   title: string;
   app_url: string;
   due_on: string | null;
+  flag: "overdue" | "today" | "ok";
+  priority: Priority;
 }
 
 export interface OtherNotificationItem {
