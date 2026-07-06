@@ -14,10 +14,10 @@ export default function Home() {
         <TasksPanel />
         <div className="rightcol">
           <ReportsPanel />
+          <BoardPanel />
           <OtherPanel />
         </div>
       </div>
-      <BoardPanel />
     </main>
   );
 }

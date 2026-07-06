@@ -94,6 +94,12 @@ button {
     padding: 22px;
   }
 }
+@media (min-width: 1024px) {
+  .cockpit {
+    height: 100vh;
+    overflow: hidden;
+  }
+}
 
 /* ---- Top bar ---- */
 .topbar {
@@ -227,6 +233,7 @@ button {
   gap: 9px;
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
 }
 .head-left {
   display: flex;
@@ -306,6 +313,7 @@ button {
   gap: 11px;
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
 }
 
 /* ---- Reply card ---- */
@@ -651,9 +659,19 @@ button {
 .board-home {
   flex: none;
 }
+@media (min-width: 1024px) {
+  .board-home {
+    flex: 1;
+    min-height: 0;
+  }
+}
 .board-home-body {
-  max-height: 460px;
-  overflow-y: auto;
+  max-height: 320px;
+}
+@media (min-width: 1024px) {
+  .board-home-body {
+    max-height: none;
+  }
 }
 .btn-small {
   padding: 6px 13px;
