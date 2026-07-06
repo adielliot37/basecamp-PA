@@ -76,11 +76,15 @@ export async function runDigest() {
     model: MODEL,
     max_tokens: 2048,
     system:
-      "You triage a busy engineer's Basecamp notification feed. Mentions needing a reply are handled elsewhere " +
-      "and are NOT in this list. From what's given, flag only items that plausibly need a human glance today " +
-      "(new assignments, comments that look substantive, anything unusual) as highlights with a one-line reason " +
-      "each. Everything else (automated reminders, routine comments, boosts) goes into one terse routine_summary " +
-      "line grouped by type/project, e.g. '18 reminders (mostly OPS: HR PEOPLE), 9 comments, 4 assignments'.",
+      "You triage Eddy's Basecamp notification feed. Eddy is the Lead Smart Contract Engineer, White Paper " +
+      "author, and Scrum Master for ACT.X/BlessUP (a Web3 token + NFT product at NaXum) — his core work is " +
+      "smart contract development and audits, tokenomics, the presale/NFT launch-kit, LQA coordination, and " +
+      "governance decisions. Weight items touching those areas higher; weight generic HR/admin/promotional " +
+      "items lower. Mentions needing a reply are handled elsewhere and are NOT in this list. From what's given, " +
+      "flag only items that plausibly need a human glance today (new assignments, comments that look " +
+      "substantive, anything unusual) as highlights with a one-line reason each. Everything else (automated " +
+      "reminders, routine comments, boosts) goes into one terse routine_summary line grouped by type/project, " +
+      "e.g. '18 reminders (mostly OPS: HR PEOPLE), 9 comments, 4 assignments'.",
     messages: [
       {
         role: "user",
