@@ -3,6 +3,7 @@ import { HeroReplyPanel } from "@/components/HeroReplyPanel";
 import { TasksPanel } from "@/components/TasksPanel";
 import { ReportsPanel } from "@/components/ReportsPanel";
 import { OtherPanel } from "@/components/OtherPanel";
+import { BoardPanel } from "@/components/BoardPanel";
 
 export default function Home() {
   return (
@@ -16,6 +17,7 @@ export default function Home() {
           <OtherPanel />
         </div>
       </div>
+      <BoardPanel />
     </main>
   );
 }

@@ -646,3 +646,207 @@ button {
   font-size: 12.5px;
   color: var(--meta);
 }
+
+/* ---- My board (home screen) ---- */
+.board-home {
+  flex: none;
+}
+.board-home-body {
+  max-height: 460px;
+  overflow-y: auto;
+}
+.btn-small {
+  padding: 6px 13px;
+  font-size: 11.5px;
+}
+
+/* ---- Add-task modal ---- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(24, 18, 34, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 50;
+}
+.modal-box {
+  width: 100%;
+  max-width: 440px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--r-panel);
+  box-shadow: 0 20px 60px rgba(20, 16, 30, 0.3);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-close {
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--meta);
+  padding: 2px 6px;
+}
+.modal-close:hover {
+  color: var(--title);
+}
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.board-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.board-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.board-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--sub);
+}
+.req {
+  color: var(--eos-fg);
+}
+.opt {
+  color: var(--meta);
+  font-weight: 400;
+}
+.board-input,
+.board-textarea {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--btn-border);
+  background: var(--btn);
+  color: var(--title);
+  width: 100%;
+}
+.board-input:focus,
+.board-textarea:focus {
+  outline: none;
+  border-color: var(--action);
+}
+.board-textarea {
+  resize: vertical;
+  min-height: 44px;
+}
+.board-error {
+  font-size: 12px;
+  color: var(--eos-fg);
+  margin: 0;
+}
+.btn-primary {
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: var(--r-pill);
+  border: none;
+  background: var(--action);
+  color: #fff;
+  white-space: nowrap;
+}
+.btn-primary:disabled,
+.act:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.board-card {
+  border-radius: 12px;
+  padding: 11px 13px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.board-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.board-card-note {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--title);
+  line-height: 1.4;
+}
+.board-card-note.done {
+  text-decoration: line-through;
+  color: var(--sub);
+}
+.board-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--meta);
+  flex-wrap: wrap;
+}
+.board-completion-note {
+  font-size: 12px;
+  color: var(--sub);
+  background: var(--chip);
+  border-radius: 8px;
+  padding: 6px 9px;
+}
+.board-card-actions {
+  display: flex;
+  gap: 6px;
+}
+.act-danger {
+  color: var(--eos-fg);
+  border-color: var(--eos-bg);
+}
+.board-complete-box {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.board-card-done {
+  opacity: 0.75;
+}
+.board-card-binned {
+  opacity: 0.85;
+}
+.board-section-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border: none;
+  background: var(--chip);
+  border-radius: 10px;
+  text-align: left;
+  margin-top: 4px;
+}
+.board-section-toggle .section-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--sub);
+}
+.board-section-toggle .toggle-caret {
+  margin-left: auto;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--meta);
+}
+.board-empty-bin {
+  align-self: flex-start;
+}

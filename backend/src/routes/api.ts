@@ -117,4 +117,79 @@ export async function registerRoutes(app: FastifyInstance) {
       .prepare("SELECT id, name, source, last_seen_at FROM watched_project ORDER BY last_seen_at DESC")
       .all();
   });
+
+  app.get("/api/personal-tasks", async () => {
+    const rows = db
+      .prepare("SELECT * FROM personal_task ORDER BY created_at DESC")
+      .all() as PersonalTaskRow[];
+    return {
+      active: rows.filter((t) => !t.deleted_at && !t.completed_at),
+      completed: rows.filter((t) => !t.deleted_at && t.completed_at),
+      bin: rows.filter((t) => t.deleted_at)
+    };
+  });
+
+  app.post("/api/personal-tasks", async (req, reply) => {
+    const body = req.body as { basecamp_link?: string; note?: string; due_date?: string | null };
+    const basecampLink = body.basecamp_link?.trim();
+    const note = body.note?.trim();
+    if (!basecampLink || !note) {
+      return reply.code(400).send({ error: "basecamp_link and note are required" });
+    }
+    const info = db
+      .prepare(`INSERT INTO personal_task (basecamp_link, note, due_date, created_at) VALUES (?, ?, ?, ?)`)
+      .run(basecampLink, note, body.due_date || null, Date.now());
+    return db.prepare("SELECT * FROM personal_task WHERE id = ?").get(info.lastInsertRowid);
+  });
+
+  app.patch("/api/personal-tasks/:id/complete", async (req) => {
+    const { id } = req.params as { id: string };
+    const body = req.body as { completion_note?: string | null };
+    db.prepare(`UPDATE personal_task SET completed_at = ?, completion_note = ? WHERE id = ?`).run(
+      Date.now(),
+      body.completion_note?.trim() || null,
+      id
+    );
+    return db.prepare("SELECT * FROM personal_task WHERE id = ?").get(id);
+  });
+
+  app.patch("/api/personal-tasks/:id/uncomplete", async (req) => {
+    const { id } = req.params as { id: string };
+    db.prepare(`UPDATE personal_task SET completed_at = NULL, completion_note = NULL WHERE id = ?`).run(id);
+    return db.prepare("SELECT * FROM personal_task WHERE id = ?").get(id);
+  });
+
+  app.patch("/api/personal-tasks/:id/delete", async (req) => {
+    const { id } = req.params as { id: string };
+    db.prepare(`UPDATE personal_task SET deleted_at = ? WHERE id = ?`).run(Date.now(), id);
+    return { ok: true };
+  });
+
+  app.patch("/api/personal-tasks/:id/restore", async (req) => {
+    const { id } = req.params as { id: string };
+    db.prepare(`UPDATE personal_task SET deleted_at = NULL WHERE id = ?`).run(id);
+    return db.prepare("SELECT * FROM personal_task WHERE id = ?").get(id);
+  });
+
+  app.delete("/api/personal-tasks/bin", async () => {
+    db.prepare(`DELETE FROM personal_task WHERE deleted_at IS NOT NULL`).run();
+    return { ok: true };
+  });
+
+  app.delete("/api/personal-tasks/:id", async (req) => {
+    const { id } = req.params as { id: string };
+    db.prepare(`DELETE FROM personal_task WHERE id = ?`).run(id);
+    return { ok: true };
+  });
+}
+
+interface PersonalTaskRow {
+  id: number;
+  basecamp_link: string;
+  note: string;
+  due_date: string | null;
+  created_at: number;
+  completed_at: number | null;
+  completion_note: string | null;
+  deleted_at: number | null;
 }

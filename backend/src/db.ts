@@ -104,6 +104,17 @@ CREATE TABLE IF NOT EXISTS poller_state (
   last_ok_at INTEGER,
   last_error TEXT
 );
+
+CREATE TABLE IF NOT EXISTS personal_task (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  basecamp_link TEXT NOT NULL,
+  note TEXT NOT NULL,
+  due_date TEXT,
+  created_at INTEGER NOT NULL,
+  completed_at INTEGER,
+  completion_note TEXT,
+  deleted_at INTEGER
+);
 `);
 
 export function seedOauthTokenIfEmpty() {

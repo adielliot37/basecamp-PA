@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 export function usePolling<T>(fetcher: () => Promise<T>, intervalMs = 30_000) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [nonce, setNonce] = useState(0);
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
 
@@ -29,7 +30,9 @@ export function usePolling<T>(fetcher: () => Promise<T>, intervalMs = 30_000) {
       cancelled = true;
       clearInterval(id);
     };
-  }, [intervalMs]);
+  }, [intervalMs, nonce]);
 
-  return { data, error };
+  const refetch = () => setNonce((n) => n + 1);
+
+  return { data, error, refetch };
 }
