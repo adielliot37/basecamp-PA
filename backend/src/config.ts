@@ -33,6 +33,8 @@ export const config = {
   pollIntervalMs: Number(process.env.POLL_INTERVAL_MS ?? 75_000),
   watchSetMaxAgeDays: Number(process.env.WATCHSET_MAX_AGE_DAYS ?? 21),
   dbPath: process.env.DB_PATH ?? "./data/cockpit.sqlite",
-  apiBearer: process.env.API_BEARER ?? "",
-  reportAutomationSecret: process.env.REPORT_AUTOMATION_SECRET ?? ""
+  reportAutomationSecret: process.env.REPORT_AUTOMATION_SECRET ?? "",
+  authPassword: process.env.AUTH_PASSWORD ?? "",
+  authSessionSecret: process.env.AUTH_SESSION_SECRET ?? "",
+  authSessionTtlMs: Number(process.env.AUTH_SESSION_TTL_MS ?? 24 * 60 * 60 * 1000)
 };

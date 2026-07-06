@@ -109,23 +109,86 @@ export interface ReportAutomationInfo {
   history: ReportAutomationEvent[];
 }
 
+const TOKEN_KEY = "cockpit_session_token";
+
+let unauthorizedHandler: (() => void) | null = null;
+export function onUnauthorized(handler: () => void) {
+  unauthorizedHandler = handler;
+}
+
+export function hasToken(): boolean {
+  return typeof window !== "undefined" && !!window.localStorage.getItem(TOKEN_KEY);
+}
+
+function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(TOKEN_KEY);
+}
+
+function setToken(token: string) {
+  if (typeof window !== "undefined") window.localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearToken() {
+  if (typeof window !== "undefined") window.localStorage.removeItem(TOKEN_KEY);
+}
+
+async function authFetch(path: string, init: RequestInit): Promise<Response> {
+  const token = getToken();
+  const headers = new Headers(init.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers, cache: "no-store" });
+
+  const rolled = res.headers.get("X-Session-Token");
+  if (rolled) setToken(rolled);
+
+  if (res.status === 401) {
+    clearToken();
+    unauthorizedHandler?.();
+  }
+  return res;
+}
+
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
+  const res = await authFetch(path, { method: "GET" });
   if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
   return (await res.json()) as T;
 }
 
 async function send<T>(path: string, method: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await authFetch(path, {
     method,
     headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    cache: "no-store"
+    body: body !== undefined ? JSON.stringify(body) : undefined
   });
   if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
   const text = await res.text();
   return (text ? JSON.parse(text) : undefined) as T;
 }
+
+export const authApi = {
+  status: async (): Promise<{ required: boolean }> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/status`, { cache: "no-store" });
+      if (!res.ok) return { required: false };
+      return (await res.json()) as { required: boolean };
+    } catch {
+      return { required: false };
+    }
+  },
+  login: async (password: string): Promise<{ expiresAt: number }> => {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password })
+    });
+    if (!res.ok) throw new Error("Invalid password");
+    const data = (await res.json()) as { token: string; expiresAt: number };
+    setToken(data.token);
+    return { expiresAt: data.expiresAt };
+  }
+};
 
 export const api = {
   needsReply: () => get<NeedsReplyItem[]>("/api/needs-reply"),
