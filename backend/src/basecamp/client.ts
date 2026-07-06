@@ -80,6 +80,56 @@ export async function bcFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+/**
+ * Paginates via the Link: rel="next" header, stopping as soon as `stopAfterPage`
+ * returns true for a page (checked after collecting it) or `maxPages` is hit.
+ * For endpoints sorted newest-first, use this to bound a scan by recency
+ * instead of walking the entire history.
+ */
+export async function bcFetchPagesUntil<T>(
+  path: string,
+  stopAfterPage: (page: T[]) => boolean,
+  maxPages = 10
+): Promise<T[]> {
+  const results: T[] = [];
+  let token = await getValidAccessToken();
+  let url: string | null = `${BASE()}${path}`;
+  let pageCount = 0;
+
+  while (url && pageCount < maxPages) {
+    let res: Response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "User-Agent": config.basecamp.userAgent
+      }
+    });
+    if (res.status === 401) {
+      token = await refreshAccessToken();
+      res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "User-Agent": config.basecamp.userAgent
+        }
+      });
+    }
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Basecamp API ${url} failed: ${res.status} ${body}`);
+    }
+    const page = (await res.json()) as T[];
+    results.push(...page);
+    pageCount += 1;
+
+    if (stopAfterPage(page)) break;
+
+    const link: string | null = res.headers.get("Link");
+    const match: RegExpMatchArray | null | undefined = link?.match(/<([^>]+)>;\s*rel="next"/);
+    url = match ? match[1] : null;
+  }
+
+  return results;
+}
+
 /** Paginates via the Link: rel="next" header, collecting every page into one array. */
 export async function bcFetchAllPages<T>(path: string): Promise<T[]> {
   const results: T[] = [];

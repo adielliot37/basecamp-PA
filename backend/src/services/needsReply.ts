@@ -1,4 +1,4 @@
-import { bcFetch } from "../basecamp/client.js";
+import { bcFetch, bcFetchPagesUntil } from "../basecamp/client.js";
 import { config } from "../config.js";
 import { db } from "../db.js";
 import { mentionsMe } from "../basecamp/mention.js";
@@ -111,10 +111,6 @@ async function refreshThread(recordingId: number, fallback: {
   const last = comments.at(-1);
   const resolvedByLastComment = last ? last.creator.id === config.basecamp.myPersonId : false;
 
-  // If nobody has mentioned me in the whole visible thread anymore (e.g. comment
-  // deleted), don't resurrect a stale row — but still record latest activity.
-  const stillMentioned = comments.some((c) => mentionsMe(c.content)) || !comments.length;
-
   upsertNeedsReply({
     recordingId,
     projectId: fallback.projectId,
@@ -126,7 +122,7 @@ async function refreshThread(recordingId: number, fallback: {
     lastAuthorId: last?.creator.id ?? null,
     lastAuthorName: last?.creator.name ?? null,
     lastActivityAt: last ? Date.parse(last.created_at) : null,
-    resolved: resolvedByLastComment || !stillMentioned
+    resolved: resolvedByLastComment
   });
 }
 
@@ -153,13 +149,84 @@ async function discoverFromMentions() {
   }
 }
 
-/** Pass 2: re-check every currently-open row so replies clear it even without a fresh notification. */
+const SCAN_RECENCY_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
+
+/**
+ * Pass 1b: scan account-wide recent comments directly for the mention marker,
+ * independent of Basecamp's "unread" flag or the auto-discovered watch-set.
+ *
+ * Verified 2026-07-06, two real gaps found in production:
+ * 1. The unread flag is NOT a reliable discovery gate — it flips in real time
+ *    (e.g. the instant Eddy opens the thread himself to check something), so
+ *    a mention can be read-and-gone before a 75s poll ever sees it unread,
+ *    even though he never actually replied.
+ * 2. The watch-set (from notifications + assignments) is incomplete — a
+ *    project with no recent unread/assignment activity never enters it, so a
+ *    per-watched-project scan silently misses mentions there too.
+ *
+ * Comment content itself is permanent and read-state-independent, and this
+ * endpoint is account-wide (not scoped to the watch-set), sorted newest-first
+ * — paginate only as far back as SCAN_RECENCY_MS, since account-wide activity
+ * across ~350 projects means "all history" would be far too much to walk
+ * every poll. discoverFromMentions (unreads) stays on as a faster, cheaper
+ * secondary signal for the common case where it isn't racing a read.
+ */
+async function scanAccountWideComments() {
+  const cutoff = Date.now() - SCAN_RECENCY_MS;
+
+  // Stop only once an entire page is past the cutoff — a single out-of-order
+  // page (this is an aggregation across ~350 projects, not one clean table)
+  // shouldn't truncate the scan early and silently drop a recent mention.
+  const comments = await bcFetchPagesUntil<BcComment>(
+    "/projects/recordings.json?type=Comment&sort=updated_at&direction=desc",
+    (page) => page.length > 0 && page.every((c) => Date.parse(c.updated_at) < cutoff),
+    20
+  );
+
+  const seenParents = new Set<number>();
+
+  for (const comment of comments) {
+    if (Date.parse(comment.updated_at) < cutoff) continue;
+    if (!comment.parent || !comment.bucket) continue;
+
+    // Two independent reasons a thread is worth tracking here: someone
+    // mentioned Eddy in it, or Eddy himself just commented (making it a
+    // "waiting on a reply" candidate — his own comment naturally won't
+    // mention himself, so this can't be folded into the check above).
+    const isRelevant = mentionsMe(comment.content) || comment.creator.id === config.basecamp.myPersonId;
+    if (!isRelevant || seenParents.has(comment.parent.id)) continue;
+    seenParents.add(comment.parent.id);
+
+    await refreshThread(comment.parent.id, {
+      projectId: comment.bucket.id,
+      projectName: comment.bucket.name,
+      title: comment.parent.title ?? comment.title ?? "Untitled",
+      appUrl: comment.parent.app_url,
+      excerpt: "",
+      mentionedAt: Date.parse(comment.created_at)
+    });
+  }
+
+}
+
+const WATCH_WINDOW_MS = 21 * 24 * 60 * 60 * 1000;
+
+/**
+ * Pass 2: re-check every recently-active mention thread, not just unresolved
+ * ones — including threads where Eddy spoke last ("waiting on a reply"). If
+ * someone else replies after him, this is what flips it back to unresolved.
+ * Bounded to a recency window so it doesn't re-scan Basecamp's entire history
+ * forever.
+ */
 async function reconcileOpenThreads() {
+  const cutoff = Date.now() - WATCH_WINDOW_MS;
   const open = db
     .prepare(
-      "SELECT recording_id, project_id, project_name, title, app_url, excerpt, mentioned_at FROM needs_reply WHERE resolved = 0 AND kind = 'mention'"
+      `SELECT recording_id, project_id, project_name, title, app_url, excerpt, mentioned_at
+       FROM needs_reply
+       WHERE kind = 'mention' AND COALESCE(last_activity_at, mentioned_at) >= ?`
     )
-    .all() as Array<{
+    .all(cutoff) as Array<{
     recording_id: number;
     project_id: number | null;
     project_name: string;
@@ -183,5 +250,6 @@ async function reconcileOpenThreads() {
 
 export async function runNeedsReplyPass() {
   await discoverFromMentions();
+  await scanAccountWideComments();
   await reconcileOpenThreads();
 }

@@ -1,4 +1,5 @@
 import { NeedsReplyPanel } from "@/components/NeedsReplyPanel";
+import { WaitingOnPanel } from "@/components/WaitingOnPanel";
 import { TasksPanel } from "@/components/TasksPanel";
 import { OtherPanel } from "@/components/OtherPanel";
 import { StatusStrip } from "@/components/StatusStrip";
@@ -26,7 +27,8 @@ export default function Home() {
           <div className="lg:col-span-7">
             <TasksPanel />
           </div>
-          <div className="lg:col-span-5 lg:border-l lg:border-[var(--color-border)] lg:pl-10">
+          <div className="lg:col-span-5 lg:border-l lg:border-[var(--color-border)] lg:pl-10 flex flex-col gap-8">
+            <WaitingOnPanel />
             <OtherPanel />
           </div>
         </div>

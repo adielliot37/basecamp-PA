@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { db } from "../db.js";
+import { config } from "../config.js";
 
 export async function registerRoutes(app: FastifyInstance) {
   app.get("/api/status", async () => {
@@ -16,6 +17,17 @@ export async function registerRoutes(app: FastifyInstance) {
          ORDER BY COALESCE(last_activity_at, mentioned_at) DESC`
       )
       .all();
+  });
+
+  app.get("/api/waiting-on", async () => {
+    return db
+      .prepare(
+        `SELECT recording_id, project_id, project_name, title, app_url, excerpt, last_activity_at
+         FROM needs_reply
+         WHERE kind = 'mention' AND resolved = 1 AND last_author_id = ?
+         ORDER BY last_activity_at ASC`
+      )
+      .all(config.basecamp.myPersonId);
   });
 
   app.get("/api/tasks", async () => {

@@ -14,6 +14,16 @@ export interface NeedsReplyItem {
   last_activity_at: number | null;
 }
 
+export interface WaitingOnItem {
+  recording_id: number;
+  project_id: number | null;
+  project_name: string;
+  title: string;
+  app_url: string;
+  excerpt: string;
+  last_activity_at: number | null;
+}
+
 export interface TaskItem {
   todo_id: number;
   project_id: number | null;
@@ -65,6 +75,7 @@ async function get<T>(path: string): Promise<T> {
 
 export const api = {
   needsReply: () => get<NeedsReplyItem[]>("/api/needs-reply"),
+  waitingOn: () => get<WaitingOnItem[]>("/api/waiting-on"),
   tasks: () => get<TaskItem[]>("/api/tasks"),
   other: () => get<OtherDigest>("/api/other"),
   reportsDue: () => get<ReportsDueInfo>("/api/reports-due"),
