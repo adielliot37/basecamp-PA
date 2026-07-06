@@ -1,0 +1,36 @@
+name: Deploy backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Copy backend source to VPS
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.VPS_HOST }} "mkdir -p ~/basecamp-cockpit/backend/data"
+          tar -czf - --exclude='node_modules' --exclude='dist' --exclude='data' backend | \
+            ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.VPS_HOST }} "tar -xzf - -C ~/basecamp-cockpit"
+
+      - name: Install, build, and restart the service
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.VPS_HOST }} '
+            set -e
+            cd ~/basecamp-cockpit/backend
+            npm install
+            npm run build
+            sudo systemctl restart basecamp-cockpit
+            sleep 2
+            curl -sf http://127.0.0.1:4100/api/status
+          '
