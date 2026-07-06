@@ -91,6 +91,24 @@ export interface PersonalBoard {
   bin: PersonalTask[];
 }
 
+export type ReportAutomationStatus = "pending" | "executed" | "failed" | "cancelled";
+
+export interface ReportAutomationEvent {
+  remote_id: number;
+  comment_text: string;
+  scheduled_at: string | null;
+  scheduled_at_ist: string | null;
+  status: ReportAutomationStatus;
+  error_msg: string | null;
+  basecamp_comment_id: string | null;
+  updated_at: number;
+}
+
+export interface ReportAutomationInfo {
+  today: ReportAutomationEvent | null;
+  history: ReportAutomationEvent[];
+}
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
@@ -126,4 +144,5 @@ export const api = {
   restorePersonalTask: (id: number) => send<PersonalTask>(`/api/personal-tasks/${id}/restore`, "PATCH", {}),
   purgePersonalTask: (id: number) => send<{ ok: true }>(`/api/personal-tasks/${id}`, "DELETE"),
   emptyPersonalBin: () => send<{ ok: true }>("/api/personal-tasks/bin", "DELETE"),
+  reportAutomation: () => get<ReportAutomationInfo>("/api/report-automation"),
 };

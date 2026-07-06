@@ -181,6 +181,72 @@ export async function registerRoutes(app: FastifyInstance) {
     db.prepare(`DELETE FROM personal_task WHERE id = ?`).run(id);
     return { ok: true };
   });
+
+  app.post("/api/report-automation/event", async (req, reply) => {
+    if (
+      !config.reportAutomationSecret ||
+      req.headers.authorization !== `Bearer ${config.reportAutomationSecret}`
+    ) {
+      return reply.code(401).send({ error: "unauthorized" });
+    }
+    const body = req.body as {
+      remote_id?: number;
+      status?: string;
+      comment_text?: string;
+      scheduled_at?: string | null;
+      scheduled_at_ist?: string | null;
+      error_msg?: string | null;
+      basecamp_comment_id?: string | null;
+    };
+    if (!body.remote_id || !body.status || !body.comment_text) {
+      return reply.code(400).send({ error: "remote_id, status, and comment_text are required" });
+    }
+    db.prepare(
+      `INSERT INTO report_automation
+         (remote_id, comment_text, scheduled_at, scheduled_at_ist, status, error_msg, basecamp_comment_id, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(remote_id) DO UPDATE SET
+         comment_text = excluded.comment_text,
+         scheduled_at = excluded.scheduled_at,
+         scheduled_at_ist = excluded.scheduled_at_ist,
+         status = excluded.status,
+         error_msg = excluded.error_msg,
+         basecamp_comment_id = excluded.basecamp_comment_id,
+         updated_at = excluded.updated_at`
+    ).run(
+      body.remote_id,
+      body.comment_text,
+      body.scheduled_at ?? null,
+      body.scheduled_at_ist ?? null,
+      body.status,
+      body.error_msg ?? null,
+      body.basecamp_comment_id ?? null,
+      Date.now()
+    );
+    return { ok: true };
+  });
+
+  app.get("/api/report-automation", async () => {
+    const rows = db
+      .prepare("SELECT * FROM report_automation ORDER BY scheduled_at DESC LIMIT 30")
+      .all() as ReportAutomationRow[];
+
+    const todayIst = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const today = rows.find((r) => r.scheduled_at_ist?.slice(0, 10) === todayIst) ?? null;
+
+    return { today, history: rows };
+  });
+}
+
+interface ReportAutomationRow {
+  remote_id: number;
+  comment_text: string;
+  scheduled_at: string | null;
+  scheduled_at_ist: string | null;
+  status: string;
+  error_msg: string | null;
+  basecamp_comment_id: string | null;
+  updated_at: number;
 }
 
 interface PersonalTaskRow {

@@ -115,6 +115,17 @@ CREATE TABLE IF NOT EXISTS personal_task (
   completion_note TEXT,
   deleted_at INTEGER
 );
+
+CREATE TABLE IF NOT EXISTS report_automation (
+  remote_id INTEGER PRIMARY KEY,
+  comment_text TEXT NOT NULL,
+  scheduled_at TEXT,
+  scheduled_at_ist TEXT,
+  status TEXT NOT NULL,
+  error_msg TEXT,
+  basecamp_comment_id TEXT,
+  updated_at INTEGER NOT NULL
+);
 `);
 
 export function seedOauthTokenIfEmpty() {

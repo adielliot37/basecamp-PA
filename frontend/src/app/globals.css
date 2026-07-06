@@ -624,6 +624,63 @@ button {
 .eos-block.ok .tag {
   background: var(--pri-low-fg);
 }
+
+/* ---- Report automation status ---- */
+.automation-block {
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  overflow: hidden;
+}
+.automation-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border: none;
+  background: transparent;
+  text-align: left;
+}
+.automation-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  flex: none;
+  background: var(--due-overdue-fg);
+}
+.automation-block.ok .automation-dot {
+  background: var(--pri-low-dot);
+}
+.automation-main {
+  flex: 1;
+  min-width: 0;
+}
+.automation-main .t {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--title);
+}
+.automation-main .s {
+  font-size: 11px;
+  color: var(--meta);
+}
+.automation-draft {
+  padding: 0 13px 12px;
+  border-top: 1px dashed var(--card-border);
+  padding-top: 8px;
+}
+.automation-draft .draft-body {
+  border-top: none;
+  padding-top: 0;
+}
+.automation-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
 .mid {
   min-width: 0;
 }
