@@ -156,7 +156,9 @@ async function discoverFromMentions() {
 /** Pass 2: re-check every currently-open row so replies clear it even without a fresh notification. */
 async function reconcileOpenThreads() {
   const open = db
-    .prepare("SELECT recording_id, project_id, project_name, title, app_url, excerpt, mentioned_at FROM needs_reply WHERE resolved = 0")
+    .prepare(
+      "SELECT recording_id, project_id, project_name, title, app_url, excerpt, mentioned_at FROM needs_reply WHERE resolved = 0 AND kind = 'mention'"
+    )
     .all() as Array<{
     recording_id: number;
     project_id: number | null;
