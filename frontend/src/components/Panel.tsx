@@ -12,13 +12,13 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section
-      className={`bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg ${className}`}
-    >
-      <header className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
-        <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
+    <section className={className}>
+      <header className="flex items-center justify-between gap-3 pb-2 mb-1 border-b border-[var(--color-border)]">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+          {title}
+        </h2>
         {typeof count === "number" && (
-          <span className="text-xs font-medium text-[var(--color-text-muted)] tabular-nums">
+          <span className="text-[11px] font-medium text-[var(--color-text-faint)] tabular-nums">
             {count}
           </span>
         )}
@@ -30,13 +30,13 @@ export function Panel({
 
 export function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <p className="px-5 py-8 text-center text-sm text-[var(--color-text-faint)]">{children}</p>
+    <p className="py-6 text-sm text-[var(--color-text-faint)]">{children}</p>
   );
 }
 
 export function PanelRow({ children }: { children: ReactNode }) {
   return (
-    <div className="px-5 py-3 border-b border-[var(--color-border)] last:border-b-0">
+    <div className="py-3 border-b border-[var(--color-border)] last:border-b-0">
       {children}
     </div>
   );

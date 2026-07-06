@@ -19,14 +19,14 @@ export default function Home() {
 
       <StatusStrip />
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-8">
         <NeedsReplyPanel />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
           <div className="lg:col-span-7">
             <TasksPanel />
           </div>
-          <div className="lg:col-span-5">
+          <div className="lg:col-span-5 lg:border-l lg:border-[var(--color-border)] lg:pl-10">
             <OtherPanel />
           </div>
         </div>
