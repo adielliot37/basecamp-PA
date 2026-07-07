@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { db } from "../db.js";
 import { config } from "../config.js";
+import { isStillPendingAfterMyReply } from "../services/replyCompletion.js";
 
 export async function registerRoutes(app: FastifyInstance) {
   app.get("/api/status", async () => {
@@ -8,16 +9,58 @@ export async function registerRoutes(app: FastifyInstance) {
   });
 
   app.get("/api/needs-reply", async () => {
-    return db
+    const rows = db
       .prepare(
         `SELECT kind, recording_id, project_id, project_name, title, app_url, excerpt,
                 mentioned_at, last_author_id, last_author_name, last_activity_at,
-                ask, draft_reply, ai_priority
+                last_comment_text, ask, draft_reply, ai_priority
          FROM needs_reply
          WHERE resolved = 0
          ORDER BY COALESCE(last_activity_at, mentioned_at) DESC`
       )
-      .all();
+      .all() as Array<{
+      kind: string;
+      recording_id: number;
+      project_id: number | null;
+      project_name: string;
+      title: string;
+      app_url: string;
+      excerpt: string;
+      mentioned_at: number;
+      last_author_id: number | null;
+      last_author_name: string | null;
+      last_activity_at: number | null;
+      last_comment_text: string | null;
+      ask: string | null;
+      draft_reply: string | null;
+      ai_priority: string | null;
+    }>;
+
+    return rows.map((r) => ({
+      ...r,
+      reply_state:
+        r.last_author_id === config.basecamp.myPersonId &&
+        isStillPendingAfterMyReply(r.last_comment_text)
+          ? ("deferred_by_me" as const)
+          : ("needs_reply" as const)
+    }));
+  });
+
+  app.patch("/api/needs-reply/:id/resolve", async (req) => {
+    const { id } = req.params as { id: string };
+    const body = (req.body as { resolved?: boolean }) ?? {};
+    const resolved = body.resolved !== false;
+    const now = Date.now();
+    if (resolved) {
+      db.prepare(
+        `UPDATE needs_reply SET resolved = 1, resolved_at = ?, manually_dismissed = 1, updated_at = ? WHERE recording_id = ?`
+      ).run(now, now, id);
+    } else {
+      db.prepare(
+        `UPDATE needs_reply SET resolved = 0, resolved_at = NULL, manually_dismissed = 0, updated_at = ? WHERE recording_id = ?`
+      ).run(now, id);
+    }
+    return { ok: true };
   });
 
   app.get("/api/waiting-on", async () => {

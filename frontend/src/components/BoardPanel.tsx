@@ -25,7 +25,7 @@ export function BoardPanel() {
   }
 
   return (
-    <section className="panel board-home">
+    <section className="panel board-home mid">
       <div className="panel-head">
         <div className="head-left">
           <span className="panel-title">My board</span>

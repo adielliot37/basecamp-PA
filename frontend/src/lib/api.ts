@@ -2,6 +2,8 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4100"
 
 export type Priority = "high" | "med" | "low";
 
+export type ReplyState = "needs_reply" | "deferred_by_me";
+
 export interface NeedsReplyItem {
   kind: "mention" | "chat";
   recording_id: number;
@@ -17,6 +19,7 @@ export interface NeedsReplyItem {
   ask: string | null;
   draft_reply: string | null;
   ai_priority: Priority | null;
+  reply_state: ReplyState;
 }
 
 export interface WaitingOnItem {
@@ -192,6 +195,8 @@ export const authApi = {
 
 export const api = {
   needsReply: () => get<NeedsReplyItem[]>("/api/needs-reply"),
+  resolveNeedsReply: (recordingId: number, resolved = true) =>
+    send<{ ok: true }>(`/api/needs-reply/${recordingId}/resolve`, "PATCH", { resolved }),
   waitingOn: () => get<WaitingOnItem[]>("/api/waiting-on"),
   tasks: () => get<TaskItem[]>("/api/tasks"),
   other: () => get<OtherDigest>("/api/other"),

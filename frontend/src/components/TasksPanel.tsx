@@ -31,7 +31,7 @@ export function TasksPanel() {
   const attentionCount = data?.filter((t) => t.flag !== "ok").length ?? 0;
 
   return (
-    <section className="panel mid">
+    <section className="panel tasks-side">
       <div className="panel-head">
         <div className="head-left">
           <span className="panel-title">My active tasks</span>
