@@ -21,25 +21,51 @@ const CLOCK = (
   </svg>
 );
 
-function ReplyCard({ item }: { item: NeedsReplyItem }) {
+function ReplyCard({ item, onResolved }: { item: NeedsReplyItem; onResolved: () => void }) {
   const [open, setOpen] = useState(false);
   const [resolved, setResolved] = useState(false);
+  const [resolving, setResolving] = useState(false);
   const [copied, setCopied] = useState(false);
   const priority = item.ai_priority ?? "med";
+  const deferred = item.reply_state === "deferred_by_me";
+
+  async function toggleResolve() {
+    const next = !resolved;
+    setResolving(true);
+    try {
+      await api.resolveNeedsReply(item.recording_id, next);
+      setResolved(next);
+      if (next) onResolved();
+    } finally {
+      setResolving(false);
+    }
+  }
 
   return (
-    <article className={`reply ${open ? "open" : ""} ${resolved ? "resolved" : ""}`}>
+    <article className={`reply ${open ? "open" : ""} ${resolved ? "resolved" : ""} ${deferred ? "deferred" : ""}`}>
       <div className="reply-top">
         <div className="proj">
           <span className="proj-dot" style={{ background: projectColor(item.project_name) }} />
           <span className="proj-name">{item.project_name}</span>
         </div>
-        <span className={`badge pri-${priority}`}>{PRI_LABEL[priority]}</span>
+        <div className="reply-badges">
+          {deferred && <span className="badge badge-deferred">Follow-up owed</span>}
+          <span className={`badge pri-${priority}`}>{PRI_LABEL[priority]}</span>
+        </div>
       </div>
       <div className="reply-title">{item.title}</div>
       <div className="reply-snippet">
-        {item.last_author_name && <b>{item.last_author_name} </b>}
-        {item.kind === "chat" ? "sent you a direct ping." : item.excerpt || "Mentioned you in a comment."}
+        {deferred ? (
+          <>
+            <b>You </b>
+            said you&rsquo;d follow up — still pending a real answer.
+          </>
+        ) : (
+          <>
+            {item.last_author_name && <b>{item.last_author_name} </b>}
+            {item.kind === "chat" ? "sent you a direct ping." : item.excerpt || "Mentioned you in a comment."}
+          </>
+        )}
       </div>
       <div className="reply-foot">
         <span className="time">
@@ -55,7 +81,7 @@ function ReplyCard({ item }: { item: NeedsReplyItem }) {
               <path d="M7 17 17 7M9 7h8v8" />
             </svg>
           </a>
-          <button className="act" onClick={() => setResolved((v) => !v)}>
+          <button className="act" onClick={toggleResolve} disabled={resolving}>
             {resolved ? "Undo" : "Resolve"}
           </button>
         </div>
@@ -88,7 +114,14 @@ function ReplyCard({ item }: { item: NeedsReplyItem }) {
 }
 
 export function HeroReplyPanel() {
-  const { data, error } = usePolling(api.needsReply, 25_000);
+  const { data, error, refetch } = usePolling(api.needsReply, 25_000);
+  const [dismissed, setDismissed] = useState<Set<number>>(new Set());
+  const visible = data?.filter((item) => !dismissed.has(item.recording_id)) ?? [];
+
+  function handleResolved(id: number) {
+    setDismissed((prev) => new Set(prev).add(id));
+    refetch();
+  }
 
   return (
     <section className="panel hero">
@@ -98,14 +131,14 @@ export function HeroReplyPanel() {
           <div className="hero-title">Needs my reply</div>
           <div className="hero-note">Persisted until you reply &mdash; won&rsquo;t vanish like the bell.</div>
         </div>
-        <span className="hero-count">{data?.length ?? 0}</span>
+        <span className="hero-count">{visible.length}</span>
       </div>
       <div className="hero-body">
         {error && <p className="empty-state">Couldn&rsquo;t load &mdash; {error}</p>}
         {!error && data === null && <p className="empty-state">Loading&hellip;</p>}
-        {!error && data?.length === 0 && <p className="empty-state">Nothing waiting on you right now.</p>}
-        {data?.map((item) => (
-          <ReplyCard key={item.recording_id} item={item} />
+        {!error && visible.length === 0 && <p className="empty-state">Nothing waiting on you right now.</p>}
+        {visible.map((item) => (
+          <ReplyCard key={item.recording_id} item={item} onResolved={() => handleResolved(item.recording_id)} />
         ))}
       </div>
     </section>

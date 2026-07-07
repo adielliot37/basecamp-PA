@@ -334,6 +334,20 @@ button {
 .reply.resolved .reply-title {
   text-decoration: line-through;
 }
+.reply.deferred {
+  border-color: var(--draft-border);
+  background: linear-gradient(180deg, #fdfaff 0%, var(--card) 100%);
+}
+.reply-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.badge-deferred {
+  background: var(--draft-bg);
+  color: var(--action);
+}
 .reply-top {
   display: flex;
   align-items: center;
@@ -686,7 +700,17 @@ button {
 }
 @media (min-width: 1024px) {
   .mid {
-    flex: 1;
+    flex: 1.35;
+    min-height: 0;
+  }
+}
+.tasks-side {
+  flex: none;
+  min-height: 0;
+}
+@media (min-width: 1024px) {
+  .tasks-side .panel-body {
+    max-height: 280px;
   }
 }
 .else {
@@ -762,21 +786,11 @@ button {
 
 /* ---- My board (home screen) ---- */
 .board-home {
-  flex: none;
-}
-@media (min-width: 1024px) {
-  .board-home {
-    flex: 1;
-    min-height: 0;
-  }
+  flex: 1;
+  min-height: 0;
 }
 .board-home-body {
-  max-height: 320px;
-}
-@media (min-width: 1024px) {
-  .board-home-body {
-    max-height: none;
-  }
+  /* Board is now the center column — no cramped inner scroll cap */
 }
 .btn-small {
   padding: 6px 13px;

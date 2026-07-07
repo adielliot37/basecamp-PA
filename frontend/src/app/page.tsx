@@ -11,10 +11,10 @@ export default function Home() {
       <TopBar />
       <div className="columns">
         <HeroReplyPanel />
-        <TasksPanel />
+        <BoardPanel />
         <div className="rightcol">
           <ReportsPanel />
-          <BoardPanel />
+          <TasksPanel />
           <OtherPanel />
         </div>
       </div>

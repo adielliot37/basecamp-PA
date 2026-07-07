@@ -76,11 +76,13 @@ export async function runReplyDrafts() {
     thinking: { type: "disabled" },
     system:
       "You draft short, direct Basecamp reply suggestions for Eddy, a smart contract engineer at NaXum. For " +
-      "each thread: 'ask' is one plain sentence stating what's actually being asked of him. 'draft' is a " +
-      "complete, copy-paste-ready reply in Eddy's voice — concise, direct, no filler, signed '— Eddy' only if " +
-      "the thread's tone calls for a sign-off. If the thread has no real text (e.g. a chat ping with no content, " +
-      "or an attachment-only comment), write a generic-but-useful ask/draft acknowledging you'll follow up. " +
-      "'priority' is high (blocking someone or time-sensitive), med (real but not urgent), or low (minor/FYI-ish).",
+      "each thread: 'ask' is one plain sentence stating what's actually being asked of him. If Eddy already " +
+      "commented with a deferral ('I'll check', 'will get back'), the ask should note he promised to follow up " +
+      "and still owes a real answer. 'draft' is a complete, copy-paste-ready reply in Eddy's voice — concise, " +
+      "direct, no filler, signed '— Eddy' only if the thread's tone calls for a sign-off. If the thread has no " +
+      "real text (e.g. a chat ping with no content, or an attachment-only comment), write a generic-but-useful " +
+      "ask/draft acknowledging you'll follow up. 'priority' is high (blocking someone or time-sensitive), med " +
+      "(real but not urgent), or low (minor/FYI-ish). Deferred follow-ups you still owe count as med or high.",
     messages: [
       {
         role: "user",

@@ -2,6 +2,7 @@ import { bcFetch, bcFetchPagesUntil } from "../basecamp/client.js";
 import { config } from "../config.js";
 import { db } from "../db.js";
 import { mentionsMe } from "../basecamp/mention.js";
+import { isStillPendingAfterMyReply } from "./replyCompletion.js";
 import type { BcComment } from "../basecamp/types.js";
 
 interface Reading {
@@ -52,11 +53,22 @@ function upsertNeedsReply(row: {
     .get(row.recordingId);
 
   if (existing) {
+    const prev = db
+      .prepare("SELECT resolved, manually_dismissed, last_activity_at FROM needs_reply WHERE recording_id = ?")
+      .get(row.recordingId) as { resolved: number; manually_dismissed: number; last_activity_at: number | null };
+
+    let resolved = row.resolved ? 1 : 0;
+    // Keep manual dismiss unless thread got new activity since last check
+    if (prev.manually_dismissed && prev.last_activity_at === row.lastActivityAt) {
+      resolved = 1;
+    }
+
     db.prepare(
       `UPDATE needs_reply
        SET project_id = ?, project_name = ?, title = ?, app_url = ?, excerpt = ?,
            last_author_id = ?, last_author_name = ?, last_activity_at = ?, last_comment_text = ?,
            resolved = ?, resolved_at = CASE WHEN ? = 1 AND resolved = 0 THEN ? ELSE resolved_at END,
+           manually_dismissed = CASE WHEN ? = 0 AND last_activity_at != ? THEN 0 ELSE manually_dismissed END,
            updated_at = ?
        WHERE recording_id = ?`
     ).run(
@@ -69,9 +81,11 @@ function upsertNeedsReply(row: {
       row.lastAuthorName,
       row.lastActivityAt,
       row.lastCommentText,
-      row.resolved ? 1 : 0,
-      row.resolved ? 1 : 0,
+      resolved,
+      resolved ? 1 : 0,
       now,
+      resolved,
+      prev.last_activity_at,
       now,
       row.recordingId
     );
@@ -136,7 +150,9 @@ async function refreshThread(recordingId: number, fallback: {
   }
 
   const last = comments.at(-1);
-  const resolvedByLastComment = last ? last.creator.id === config.basecamp.myPersonId : false;
+  const iSpokeLast = last ? last.creator.id === config.basecamp.myPersonId : false;
+  const myCommentPending = iSpokeLast && isStillPendingAfterMyReply(last ? stripHtml(last.content) : null);
+  const resolvedByLastComment = iSpokeLast && !myCommentPending;
   const resolved = resolvedByLastComment || (await isContainerCompleted(fallback.projectId, recordingId));
 
   upsertNeedsReply({

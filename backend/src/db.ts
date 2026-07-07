@@ -98,6 +98,12 @@ CREATE TABLE IF NOT EXISTS draft_state (
   generated_at INTEGER
 );
 
+CREATE TABLE IF NOT EXISTS deferral_state (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  ids_key TEXT,
+  checked_at INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS poller_state (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   last_run_at INTEGER,
@@ -127,6 +133,11 @@ CREATE TABLE IF NOT EXISTS report_automation (
   updated_at INTEGER NOT NULL
 );
 `);
+try {
+  db.exec(`ALTER TABLE needs_reply ADD COLUMN manually_dismissed INTEGER NOT NULL DEFAULT 0`);
+} catch {
+  // column already exists
+}
 
 export function seedOauthTokenIfEmpty() {
   const row = db.prepare("SELECT id FROM oauth_token WHERE id = 1").get();
