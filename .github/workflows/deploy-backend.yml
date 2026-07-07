@@ -30,7 +30,14 @@ jobs:
             cd ~/basecamp-cockpit/backend
             npm install
             npm run build
+            sudo systemctl daemon-reload
             sudo systemctl restart basecamp-cockpit
-            sleep 2
-            curl -sf http://127.0.0.1:4100/api/status
+            sleep 3
+            if ! curl -sf http://127.0.0.1:4100/api/status; then
+              echo "--- service status ---"
+              sudo systemctl status basecamp-cockpit --no-pager || true
+              echo "--- recent logs ---"
+              sudo journalctl -u basecamp-cockpit -n 40 --no-pager || true
+              exit 1
+            fi
           '
