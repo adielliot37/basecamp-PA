@@ -13,7 +13,12 @@ const app = Fastify({ logger: true });
 
 await app.register(cors, { origin: true, exposedHeaders: ["X-Session-Token"] });
 
-const UNAUTHENTICATED_PATHS = ["/api/auth/login", "/api/auth/status", "/api/report-automation/event"];
+const UNAUTHENTICATED_PATHS = [
+  "/api/auth/login",
+  "/api/auth/status",
+  "/api/status",
+  "/api/report-automation/event"
+];
 
 app.addHook("onRequest", async (req, reply) => {
   if (!config.authPassword) return; // no password configured (local dev)
