@@ -32,6 +32,14 @@ export const config = {
   port: Number(process.env.PORT ?? 4100),
   pollIntervalMs: Number(process.env.POLL_INTERVAL_MS ?? 75_000),
   watchSetMaxAgeDays: Number(process.env.WATCHSET_MAX_AGE_DAYS ?? 21),
+  ai: {
+    // Empty/missing key = skip every model call (Basecamp sync still runs).
+    apiKey: process.env.ANTHROPIC_API_KEY ?? "",
+    // Hard ceiling so a gating bug cannot burn thousands of calls/day.
+    maxCallsPerDay: Number(process.env.AI_MAX_CALLS_PER_DAY ?? 48),
+    // Digest unread-list churns constantly; never re-cluster faster than this.
+    digestMinIntervalMs: Number(process.env.AI_DIGEST_MIN_INTERVAL_MS ?? 30 * 60 * 1000)
+  },
   dbPath: process.env.DB_PATH ?? "./data/cockpit.sqlite",
   reportAutomationSecret: process.env.REPORT_AUTOMATION_SECRET ?? "",
   authPassword: process.env.AUTH_PASSWORD ?? "",

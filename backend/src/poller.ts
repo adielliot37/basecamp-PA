@@ -10,19 +10,18 @@ import { runChatPingsPass } from "./services/chatPings.js";
 import { runReplyRelevanceFilter } from "./services/replyRelevance.js";
 import { runDeferralRecheck } from "./services/replyCompletion.js";
 import { runReplyDrafts } from "./services/replyDrafts.js";
+import { isAiEnabled } from "./ai.js";
 
 async function tick() {
   try {
     await runWatchSetDiscovery();
     await runNeedsReplyPass();
-    await runReplyRelevanceFilter();
-    await runDeferralRecheck();
     await runChatPingsPass();
-    await runReplyDrafts();
     await runAssignmentsSync();
     await runOtherNotificationsSync();
     await runReportsDueCheck();
-    await runDigest();
+    runDeferralRecheck();
+    await runAiPasses();
     db.prepare("UPDATE poller_state SET last_run_at = ?, last_ok_at = ?, last_error = NULL WHERE id = 1").run(
       Date.now(),
       Date.now()
@@ -31,6 +30,23 @@ async function tick() {
     const message = err instanceof Error ? err.message : String(err);
     console.error("Poller tick failed:", message);
     db.prepare("UPDATE poller_state SET last_run_at = ?, last_error = ? WHERE id = 1").run(Date.now(), message);
+  }
+}
+
+/** Model calls are isolated so a missing key / API error never blocks Basecamp sync. */
+async function runAiPasses() {
+  if (!isAiEnabled()) return;
+  for (const [name, fn] of [
+    ["relevance", runReplyRelevanceFilter],
+    ["drafts", runReplyDrafts],
+    ["digest", runDigest]
+  ] as const) {
+    try {
+      await fn();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`AI ${name} failed:`, message);
+    }
   }
 }
 
