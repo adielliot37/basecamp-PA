@@ -104,6 +104,13 @@ CREATE TABLE IF NOT EXISTS deferral_state (
   checked_at INTEGER
 );
 
+CREATE TABLE IF NOT EXISTS ai_usage (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  day TEXT NOT NULL,
+  calls INTEGER NOT NULL DEFAULT 0,
+  last_call_at INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS poller_state (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   last_run_at INTEGER,
@@ -135,6 +142,16 @@ CREATE TABLE IF NOT EXISTS report_automation (
 `);
 try {
   db.exec(`ALTER TABLE needs_reply ADD COLUMN manually_dismissed INTEGER NOT NULL DEFAULT 0`);
+} catch {
+  // column already exists
+}
+try {
+  db.exec(`ALTER TABLE needs_reply ADD COLUMN ai_verdict TEXT`);
+} catch {
+  // column already exists
+}
+try {
+  db.exec(`ALTER TABLE needs_reply ADD COLUMN draft_source_text TEXT`);
 } catch {
   // column already exists
 }

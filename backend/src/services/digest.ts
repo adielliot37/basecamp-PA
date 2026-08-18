@@ -1,12 +1,6 @@
-import "../config.js"; // ensure dotenv has loaded before the client reads ANTHROPIC_API_KEY
-import Anthropic from "@anthropic-ai/sdk";
+import { completeJson } from "../ai.js";
+import { config } from "../config.js";
 import { db } from "../db.js";
-
-const client = new Anthropic();
-
-// Clustering ~40 short notification titles is a cheap, low-stakes task —
-// Haiku 4.5 is the right tier here, not Opus. Bump per-task if the ask changes.
-const MODEL = "claude-haiku-4-5";
 
 const DIGEST_SCHEMA = {
   type: "object",
@@ -41,6 +35,8 @@ interface NotificationRow {
   project_name: string;
 }
 
+const MAX_ITEMS = 40;
+
 function upsertDigest(highlights: DigestResult["highlights"], routineSummary: string, idsKey: string | null) {
   db.prepare(
     `INSERT INTO digest (id, highlights_json, routine_summary, ids_key, generated_at)
@@ -55,8 +51,10 @@ function upsertDigest(highlights: DigestResult["highlights"], routineSummary: st
 
 export async function runDigest() {
   const items = db
-    .prepare("SELECT id, type, title, project_name FROM other_notification ORDER BY created_at_bc DESC")
-    .all() as NotificationRow[];
+    .prepare(
+      "SELECT id, type, title, project_name FROM other_notification ORDER BY created_at_bc DESC LIMIT ?"
+    )
+    .all(MAX_ITEMS) as NotificationRow[];
 
   if (items.length === 0) {
     upsertDigest([], "Inbox zero.", null);
@@ -67,14 +65,21 @@ export async function runDigest() {
     .map((i) => i.id)
     .sort((a, b) => a - b)
     .join(",");
-  const existing = db.prepare("SELECT ids_key FROM digest WHERE id = 1").get() as
-    | { ids_key: string | null }
+  const existing = db.prepare("SELECT ids_key, generated_at FROM digest WHERE id = 1").get() as
+    | { ids_key: string | null; generated_at: number }
     | undefined;
-  if (existing?.ids_key === idsKey) return; // nothing new since the last digest — skip the API call
+  if (existing?.ids_key === idsKey) return;
 
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 2048,
+  // Unread notifications churn every poll (mark-read, new reminder, etc.).
+  // Do not re-cluster more often than digestMinIntervalMs.
+  if (existing?.generated_at && Date.now() - existing.generated_at < config.ai.digestMinIntervalMs) {
+    return;
+  }
+
+  const result = await completeJson<DigestResult>({
+    label: "digest",
+    maxTokens: 1024,
+    schema: DIGEST_SCHEMA,
     system:
       "You triage Eddy's Basecamp notification feed. Eddy is the Lead Smart Contract Engineer, White Paper " +
       "author, and Scrum Master for ACT.X/BlessUP (a Web3 token + NFT product at NaXum) — his core work is " +
@@ -85,20 +90,11 @@ export async function runDigest() {
       "substantive, anything unusual) as highlights with a one-line reason each. Everything else (automated " +
       "reminders, routine comments, boosts) goes into one terse routine_summary line grouped by type/project, " +
       "e.g. '18 reminders (mostly OPS: HR PEOPLE), 9 comments, 4 assignments'.",
-    messages: [
-      {
-        role: "user",
-        content: `Notifications (id | type | title | project):\n${items
-          .map((i) => `${i.id} | ${i.type} | ${i.title} | ${i.project_name}`)
-          .join("\n")}`
-      }
-    ],
-    output_config: { format: { type: "json_schema", schema: DIGEST_SCHEMA } }
-  } as Anthropic.MessageCreateParamsNonStreaming);
+    user: `Notifications (id | type | title | project):\n${items
+      .map((i) => `${i.id} | ${i.type} | ${i.title} | ${i.project_name}`)
+      .join("\n")}`
+  });
 
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") throw new Error("Digest: no text block in response");
-  const result = JSON.parse(textBlock.text) as DigestResult;
-
+  if (!result) return;
   upsertDigest(result.highlights, result.routine_summary, idsKey);
 }

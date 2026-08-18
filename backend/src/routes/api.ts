@@ -1,11 +1,23 @@
 import type { FastifyInstance } from "fastify";
 import { db } from "../db.js";
 import { config } from "../config.js";
+import { isAiEnabled } from "../ai.js";
 import { isStillPendingAfterMyReply } from "../services/replyCompletion.js";
 
 export async function registerRoutes(app: FastifyInstance) {
   app.get("/api/status", async () => {
-    return db.prepare("SELECT last_run_at, last_ok_at, last_error FROM poller_state WHERE id = 1").get();
+    const poller = db
+      .prepare("SELECT last_run_at, last_ok_at, last_error FROM poller_state WHERE id = 1")
+      .get() as { last_run_at: number | null; last_ok_at: number | null; last_error: string | null } | undefined;
+    const usage = db.prepare("SELECT day, calls, last_call_at FROM ai_usage WHERE id = 1").get() as
+      | { day: string; calls: number; last_call_at: number | null }
+      | undefined;
+    return {
+      ...poller,
+      ai_enabled: isAiEnabled(),
+      ai_max_calls_per_day: config.ai.maxCallsPerDay,
+      ai_usage: usage ?? { day: null, calls: 0, last_call_at: null }
+    };
   });
 
   app.get("/api/needs-reply", async () => {

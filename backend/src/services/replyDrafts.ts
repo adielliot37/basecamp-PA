@@ -1,14 +1,5 @@
-import "../config.js";
-import Anthropic from "@anthropic-ai/sdk";
+import { completeJson } from "../ai.js";
 import { db } from "../db.js";
-
-const client = new Anthropic();
-
-// Drafting words Eddy will actually copy-paste and send is a step up in stakes
-// from the clustering/classification passes (digest, relevance filter) — worth
-// Sonnet over Haiku here. Still bounded: only the small set of currently-open
-// reply threads, and gated to skip unchanged content.
-const MODEL = "claude-sonnet-5";
 
 const DRAFTS_SCHEMA = {
   type: "object",
@@ -44,36 +35,32 @@ interface CandidateRow {
   last_comment_text: string | null;
 }
 
+const MAX_BATCH = 8;
+
 /**
- * Generates, per open thread: a one-line "what's being asked", a copy-ready
- * draft reply, and a priority. Draft-only — this never posts anything; Eddy
- * copies it into Basecamp himself if he wants it. Gated to only run when the
- * open-thread content actually changes, so it doesn't re-draft on every poll.
+ * Per open thread: one-line ask, copy-ready draft, priority. Draft-only —
+ * never posts. Haiku is enough for short Basecamp replies; Sonnet-on-every-poll
+ * was the main credit sink. Only threads whose last comment changed (or that
+ * have no draft yet) are sent, so a new ping does not re-draft the whole inbox.
  */
 export async function runReplyDrafts() {
   const candidates = db
     .prepare(
       `SELECT recording_id, title, project_name, last_author_name, last_comment_text
        FROM needs_reply
-       WHERE resolved = 0`
+       WHERE resolved = 0
+         AND (draft_source_text IS NULL OR draft_source_text != IFNULL(last_comment_text, ''))
+       ORDER BY COALESCE(last_activity_at, mentioned_at) DESC
+       LIMIT ?`
     )
-    .all() as CandidateRow[];
+    .all(MAX_BATCH) as CandidateRow[];
 
   if (candidates.length === 0) return;
 
-  const idsKey = candidates
-    .map((c) => `${c.recording_id}:${c.last_comment_text ?? ""}`)
-    .sort()
-    .join("|");
-  const existing = db.prepare("SELECT ids_key FROM draft_state WHERE id = 1").get() as
-    | { ids_key: string | null }
-    | undefined;
-  if (existing?.ids_key === idsKey) return;
-
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 4096,
-    thinking: { type: "disabled" },
+  const parsed = await completeJson<DraftsResult>({
+    label: "drafts",
+    maxTokens: 2048,
+    schema: DRAFTS_SCHEMA,
     system:
       "You draft short, direct Basecamp reply suggestions for Eddy, a smart contract engineer at NaXum. For " +
       "each thread: 'ask' is one plain sentence stating what's actually being asked of him. If Eddy already " +
@@ -83,33 +70,20 @@ export async function runReplyDrafts() {
       "real text (e.g. a chat ping with no content, or an attachment-only comment), write a generic-but-useful " +
       "ask/draft acknowledging you'll follow up. 'priority' is high (blocking someone or time-sensitive), med " +
       "(real but not urgent), or low (minor/FYI-ish). Deferred follow-ups you still owe count as med or high.",
-    messages: [
-      {
-        role: "user",
-        content: candidates
-          .map(
-            (c) =>
-              `recording_id: ${c.recording_id}\ntitle: ${c.title}\nproject: ${c.project_name}\nlast comment by: ${c.last_author_name ?? "unknown"}\nlast comment: ${c.last_comment_text || "(no text)"}`
-          )
-          .join("\n---\n")
-      }
-    ],
-    output_config: { format: { type: "json_schema", schema: DRAFTS_SCHEMA } }
-  } as Anthropic.MessageCreateParamsNonStreaming);
+    user: candidates
+      .map(
+        (c) =>
+          `recording_id: ${c.recording_id}\ntitle: ${c.title}\nproject: ${c.project_name}\nlast comment by: ${c.last_author_name ?? "unknown"}\nlast comment: ${c.last_comment_text || "(no text)"}`
+      )
+      .join("\n---\n")
+  });
 
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") return;
-  const parsed = JSON.parse(textBlock.text) as DraftsResult;
+  if (!parsed) return;
 
   const update = db.prepare(
-    "UPDATE needs_reply SET ask = ?, draft_reply = ?, ai_priority = ? WHERE recording_id = ?"
+    "UPDATE needs_reply SET ask = ?, draft_reply = ?, ai_priority = ?, draft_source_text = IFNULL(last_comment_text, '') WHERE recording_id = ?"
   );
   for (const r of parsed.results) {
     update.run(r.ask, r.draft, r.priority, r.recording_id);
   }
-
-  db.prepare(
-    `INSERT INTO draft_state (id, ids_key, generated_at) VALUES (1, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET ids_key = excluded.ids_key, generated_at = excluded.generated_at`
-  ).run(idsKey, Date.now());
 }
